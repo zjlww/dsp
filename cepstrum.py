@@ -67,8 +67,8 @@ def complex_cepstrum_to_fft(
     assert fft_size >= ccep_size, "FFT size should be greater than CCep size."
     ccep = fftpad(ccep, fft_size - ccep_size, dim=dim)
     X_hat = torch.fft.fft(ccep, dim=dim)  # [fft_size@dim]
-    log_magnitude_responses = X_hat.real()
-    phase_responses = X_hat.imag()
+    log_magnitude_responses = X_hat.real
+    phase_responses = X_hat.imag
     magnitude_responses = log_magnitude_responses.exp()
     X_real = magnitude_responses * torch.cos(phase_responses)
     X_imag = magnitude_responses * torch.sin(phase_responses)
@@ -88,7 +88,7 @@ def complex_cepstrum_to_imp(
             impulse responses.
     """
     X, _, _ = complex_cepstrum_to_fft(ccep, fft_size)
-    x = torch.fft.ifft(X, dim=dim).real()  # [fft_size@dim]
+    x = torch.fft.ifft(X, dim=dim).real  # [fft_size@dim]
     return x
 
 

@@ -70,12 +70,12 @@ def fft_multiply(x: Tensor, y: Tensor,
     fft_x = fft(x, dim=-1)
     fft_y = fft(y, dim=-1)
     flip_sign = -1 if flip else +1
-    fft_z_real = fft_x.real() * fft_y.real() - \
-        flip_sign * fft_x.imag() * fft_y.imag()
-    fft_z_imag = flip_sign * fft_x.real() * fft_y.imag() + \
-        fft_x.imag() * fft_y.real()
+    fft_z_real = fft_x.real * fft_y.real - \
+        flip_sign * fft_x.imag * fft_y.imag
+    fft_z_imag = flip_sign * fft_x.real * fft_y.imag + \
+        fft_x.imag * fft_y.real
     fft_z = torch.complex(fft_z_real, fft_z_imag)
-    z = ifft(fft_z, dim=-1).real()
+    z = ifft(fft_z, dim=-1).real
     return z
 
 

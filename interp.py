@@ -50,7 +50,7 @@ def window_interpolate(x: Tensor, window: Tensor,
     Similar to OLA ISTFT, the window tensor should satisfy COLA constraint
     under frame_shift. This function is equivalent to zero stuffing, then
     compute convolution of the window tensor with x.
-    This function does not trim the excess at both end after OLA.
+    This function does not trim the excess at both ends after OLA.
     Args:
         x: [..., n_frame].
         window: [window_size]
