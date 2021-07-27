@@ -1,17 +1,14 @@
 """
 Filter banks.
 """
-from functools import lru_cache
-from math import pi
-
 import torch
 from torch import Tensor
 from torch.nn.functional import pad
 
 from .utils import frame_signal
-from typing import Union, Tuple, Callable, Iterable
-from math import log2, ceil
-import numpy as np
+
+from typing import Tuple, Callable, Iterable
+from math import ceil, pi
 
 
 @torch.no_grad()
@@ -56,7 +53,7 @@ def window_based_filter_bank(
     meter = grid / window_lengths.unsqueeze(-1)  # [n_filter, max_width]
     windows = window_function(meter) / window_lengths.unsqueeze(1)
     # [n_filter, max_width] centered windows, weight corrected by window length
-    freq_grid = grid * (-2 * np.pi * center_freqs.unsqueeze(-1) /
+    freq_grid = grid * (-2 * pi * center_freqs.unsqueeze(-1) /
                         sampling_rate)
     # [n_filter, max_width]
     real_basis = torch.cos(freq_grid) * windows  # [n_filter, max_width]
