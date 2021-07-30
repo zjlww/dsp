@@ -77,7 +77,7 @@ def complex_cepstrum_to_fft(
 
 
 def complex_cepstrum_to_imp(
-    ccep: Tensor, fft_size: int, dim: int = -1) -> Tuple[Tensor, Tensor, Tensor]:
+    ccep: Tensor, fft_size: int, dim: int = -1) -> Tensor:
     """Convert complex cepstrums to corresponding magnitude responses,
     phase responses, and impulse responses.
     Args:
@@ -87,7 +87,7 @@ def complex_cepstrum_to_imp(
         impulse_responses: [fft_size@dim]. Approximated time wrapped
             impulse responses.
     """
-    X, _, _ = complex_cepstrum_to_fft(ccep, fft_size)
+    X, _, _ = complex_cepstrum_to_fft(ccep, fft_size, dim=dim)
     x = torch.fft.ifft(X, dim=dim).real  # [fft_size@dim]
     return x
 

@@ -1,6 +1,7 @@
 """
 STFT Analysis.
 """
+from typing import Iterable
 import torch
 from torch import Tensor
 from torch.nn.functional import pad
@@ -55,7 +56,7 @@ def frame_center_stft(
         x: [n_batch, 1, n_sample].
         window_type: STFT window type. See `get_window` for details.
     Returns:
-        X: [n_batch, n_frame, fft_size, 2], 
+        X: [n_batch, n_frame, fft_size], 
             where n_frame = n_sample // hop_size
     """
     assert fft_size >= window_size >= hop_size
@@ -68,7 +69,7 @@ def frame_center_stft(
     )
     x = pad(x, [padding_left, padding_right])
     X = bare_stft(x, window, hop_size)
-    return X
+    return X.squeeze(1)
 
 
 def stft_magnitude_to_mel_scale_log_magnitude(
@@ -78,7 +79,7 @@ def stft_magnitude_to_mel_scale_log_magnitude(
     mel_size: int,
     mel_min_f0: float,
     mel_max_f0: float,
-    log_mel_min_clip: float
+    mel_log_min_clip: float
 ) -> Tensor:
     """Project onesided STFT magnitude to mel scale log magnitude.
     Args:
@@ -95,7 +96,7 @@ def stft_magnitude_to_mel_scale_log_magnitude(
         sampling_rate, fft_size, mel_size, mel_min_f0,
         mel_max_f0, mag_X.device)
     return mag_X[..., :(fft_size // 2 + 1)].matmul(projection_matrix) \
-        .log().clamp(min=log_mel_min_clip)
+        .log().clamp(min=mel_log_min_clip)
 
 
 def frame_center_log_mel_spectrogram(
@@ -115,7 +116,7 @@ def frame_center_log_mel_spectrogram(
     )
     mag_X = X.abs()
     return stft_magnitude_to_mel_scale_log_magnitude(
-        sampling_rate, mag_X, mel_size, mel_min_f0, mel_max_f0,
+        sampling_rate, mag_X, fft_size, mel_size, mel_min_f0, mel_max_f0,
         mel_log_min_clip)
 
 
@@ -138,3 +139,39 @@ def cfbstft(
         center_freqs, window_lengths, continuous_hann_window, sampling_rate
     )
     return apply_filter_bank(x, hop_size, basis)
+
+
+def stft_loss(
+    x: Tensor, y: Tensor, fft_lengths: Iterable[int], window_lengths: Iterable[int], hop_lengths: Iterable[int], 
+    loss_scale_type: str) -> Tensor:
+    """Compute STFTLoss. The length of provided configuration lists should be
+    the same.
+    Args:
+        x, y: [n_batch, 1, n_sample]
+    Returns:
+        loss: []
+    """
+    x, y = x.squeeze(1), y.squeeze(1)
+    loss = 0.0
+    batch_size = x.size(0)
+    z = torch.cat([x, y], dim=0)  # shape: [2 x Batch, T]
+    for fft_length, window_length, hop_length in zip(fft_lengths, window_lengths, hop_lengths):
+        window = torch.hann_window(window_length, device=x.device)
+        Z = torch.stft(z, fft_length, hop_length, window_length, window, return_complex=False)
+        # shape: [2 x Batch, Frame, 2]
+        SquareZ = Z.pow(2).sum(dim=-1) + 1e-10  # shape: [2 x Batch, Frame]
+        SquareX, SquareY = SquareZ.split(batch_size, dim=0)
+        MagZ = SquareZ.sqrt()
+        MagX, MagY = MagZ.split(batch_size, dim=0)
+        if loss_scale_type == "log_linear":
+            loss += (MagX - MagY).abs().mean() + \
+                    0.5 * (SquareX.log() - SquareY.log()).abs().mean()
+        elif loss_scale_type == "linear":
+            loss += (MagX - MagY).abs().mean()
+        elif isinstance(loss_scale_type, float):
+            loss += (MagX - MagY).abs().mean() + \
+                    0.5 * loss_scale_type * \
+                          (SquareX.log() - SquareY.log()).abs().mean()
+        else:
+            raise RuntimeError(f"Unrecognized STFT loss scale type.")
+    return loss
